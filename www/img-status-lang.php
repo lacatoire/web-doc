@@ -1,9 +1,5 @@
 <?php
 
-require_once __DIR__ . '/../include/jpgraph/src/jpgraph.php';
-require_once __DIR__ . '/../include/jpgraph/src/jpgraph_pie.php';
-require_once __DIR__ . '/../include/jpgraph/src/jpgraph_pie3d.php';
-
 require_once __DIR__ . '/../include/init.inc.php';
 require_once __DIR__ . '/../include/lib_revcheck.inc.php';
 require_once __DIR__ . '/../include/lib_proj_lang.inc.php';
@@ -48,39 +44,42 @@ function generate_image($lang, $idx) {
         $percent[] = round($value * 100 / $total);
     }
 
-    $legend = array($percent[0] . '%% up to date ('.$up_to_date.')', $percent[1] . '%% outdated ('.$outdated.')', $percent[2] . '%% missing ('.$missing.')', $percent[3] . '%% without EN-Revision ('.$no_tag.')');
+    $legend = array($percent[0] . '% up to date ('.$up_to_date.')', $percent[1] . '% outdated ('.$outdated.')', $percent[2] . '% missing ('.$missing.')', $percent[3] . '% without EN-Revision ('.$no_tag.')');
     $title = 'Details for '.$LANGUAGES[$lang].' PHP Manual';
+    $colors = ['#61A9F3', '#F381B9', '#61E3A9', '#85ED82'];
 
-    $graph = new PieGraph(680,300);
-    $graph->SetShadow();
+    $W = 680; $H = 300; $cx = 140; $cy = 165; $ro = 110; $ri = 64;
 
-    $graph->title->Set($title);
-    $graph->title->Align('left');
-    $graph->title->SetFont(FF_FONT1,FS_BOLD);
+    header('Content-Type: image/svg+xml; charset=utf-8');
+    echo '<?xml version="1.0" encoding="UTF-8"?>';
+    echo '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '.$W.' '.$H.'" width="'.$W.'" height="'.$H.'" role="img" aria-label="'.htmlspecialchars($title).'">';
+    echo '<style>text{font:11px sans-serif;fill:#000}.t{font:bold 14px sans-serif}.s{fill:#8b0000}path{stroke:#fff;stroke-width:2}</style>';
+    echo '<text class="t" x="20" y="28">'.htmlspecialchars($title).'</text>';
+    echo '<text class="s" x="20" y="46">(Total: '.$total_files_lang.' files)</text>';
 
-    $graph->legend->Pos(0.02,0.18,"right","center");
-
-    $graph->subtitle->Set('(Total: '.$total_files_lang.' files)');
-    $graph->subtitle->Align('left');
-    $graph->subtitle->SetColor('darkred');
-
-    $t1 = new Text(date('m/d/Y'));
-    $t1->SetPos(522,294);
-    $t1->SetFont(FF_FONT1,FS_NORMAL);
-    $t1->Align("right", 'bottom');
-    $t1->SetColor("black");
-    $graph->AddText($t1);
-
-    $p1 = new PiePlot3D($data);
-    $p1->SetSliceColors(array("#68d888", "#ff6347", "#dcdcdc", "#f4a460"));
-    if ($total_files_lang != $up_to_date) {
-       $p1->ExplodeAll();
+    $angle = -M_PI / 2;
+    foreach ($data as $i => $value) {
+        if ($value <= 0) continue;
+        $sweep = ($value / $total) * 2 * M_PI;
+        $end = $angle + $sweep;
+        $sx1 = $cx + $ro * cos($angle); $sy1 = $cy + $ro * sin($angle);
+        $ex1 = $cx + $ro * cos($end);   $ey1 = $cy + $ro * sin($end);
+        $sx2 = $cx + $ri * cos($end);   $sy2 = $cy + $ri * sin($end);
+        $ex2 = $cx + $ri * cos($angle); $ey2 = $cy + $ri * sin($angle);
+        $large = ($end - $angle) > M_PI ? 1 : 0;
+        $d = sprintf('M %.2f %.2f A %d %d 0 %d 1 %.2f %.2f L %.2f %.2f A %d %d 0 %d 0 %.2f %.2f Z',
+            $sx1, $sy1, $ro, $ro, $large, $ex1, $ey1, $sx2, $sy2, $ri, $ri, $large, $ex2, $ey2);
+        echo '<path d="'.$d.'" fill="'.$colors[$i].'"><title>'.htmlspecialchars($legend[$i]).'</title></path>';
+        $angle = $end;
     }
-    $p1->SetCenter(0.35,0.55);
-    $p1->value->Show(false);
 
-    $p1->SetLegends($legend);
+    $lx = 290; $ly = 110;
+    foreach ($legend as $i => $line) {
+        $y = $ly + $i * 26;
+        echo '<rect x="'.$lx.'" y="'.($y - 11).'" width="14" height="14" rx="2" fill="'.$colors[$i].'"/>';
+        echo '<text x="'.($lx + 22).'" y="'.$y.'">'.htmlspecialchars($line).'</text>';
+    }
 
-    $graph->Add($p1);
-    $graph->Stroke();
+    echo '<text x="'.($W - 18).'" y="'.($H - 8).'" text-anchor="end">'.date('m/d/Y').'</text>';
+    echo '</svg>';
 }

@@ -1,7 +1,4 @@
 <?php
-require_once __DIR__ . '/../include/jpgraph/src/jpgraph.php';
-require_once __DIR__ . '/../include/jpgraph/src/jpgraph_bar.php';
-
 require_once __DIR__ . '/../include/init.inc.php';
 require_once __DIR__ . '/../include/lib_revcheck.inc.php';
 
@@ -22,44 +19,28 @@ foreach ($language as $lang) {
 $percent = array_values($percent_tmp);
 $legend = array_values($legend_tmp);
 
-// Create the graph. These two calls are always required
-$graph = new Graph(600,262);
-$graph->SetScale("textlin");
+$colors = ['#9999CC', '#99CC99', '#CC9999'];
+$bw = 44; $gap = 18; $left = 50; $right = 24;
+$top = 60; $plot_h = 200; $bottom = 38;
+$width  = max(600, $left + count($percent) * ($bw + $gap) - $gap + $right);
+$height = $top + $plot_h + $bottom;
+$base   = $top + $plot_h;
 
-$graph->xaxis->SetLabelmargin(5);
-$graph->xaxis->SetTickLabels($legend);
-
-$graph->ygrid->SetFill(true,'#EFEFEF@0.5','#BBCCFF@0.5');
-
-// Add a drop shadow
-$graph->SetShadow();
-
-// Adjust the margin a bit to make more room for titles
-$graph->img->SetMargin(50,30,35,40);
-
-// Create a bar pot
-$bplot = new BarPlot($percent);
-$graph->Add($bplot);
-
-// Adjust fill color
-$bplot->SetFillColor([ '#9999CC', '#99CC99', '#CC9999' ]);
-
-$bplot->SetShadow();
-$bplot->value->Show();
-$bplot->value->SetFont(FF_FONT1,FS_NORMAL,10);
-$bplot->value->SetFormat('%0.0f%%');
-
-// Width
-$bplot->SetWidth(0.6);
-
-// Setup the titles
-$graph->title->Set("PHP Translation Status");
-$graph->xaxis->title->Set("Language");
-$graph->yaxis->title->Set("Files up to date (%)");
-
-$graph->title->SetFont(FF_FONT1,FS_BOLD);
-$graph->yaxis->title->SetFont(FF_FONT1,FS_NORMAL);
-$graph->xaxis->title->SetFont(FF_FONT1,FS_NORMAL);
-
-// Display the graph
-$graph->Stroke();
+header('Content-Type: image/svg+xml; charset=utf-8');
+echo '<?xml version="1.0" encoding="UTF-8"?>';
+?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 <?= $width ?> <?= $height ?>" width="<?= $width ?>" height="<?= $height ?>" role="img" aria-label="PHP Translation Status">
+  <style>text{font:11px sans-serif;fill:#000}.t{font:bold 14px sans-serif}.g{stroke:#efefef}.b{stroke:#bbccff}</style>
+  <text class="t" x="0" y="22">PHP Translation Status</text>
+  <text x="0" y="40">Files up to date per language</text>
+<?php foreach ([0, 25, 50, 75, 100] as $tick): $y = $base - $plot_h * $tick / 100; ?>
+  <line class="g" x1="<?= $left ?>" y1="<?= $y ?>" x2="<?= $width - $right + 8 ?>" y2="<?= $y ?>"/>
+  <text x="<?= $left - 8 ?>" y="<?= $y + 4 ?>" text-anchor="end"><?= $tick ?>%</text>
+<?php endforeach; ?>
+  <line class="b" x1="<?= $left ?>" y1="<?= $base ?>" x2="<?= $width - $right + 8 ?>" y2="<?= $base ?>"/>
+<?php foreach ($percent as $i => $p): $x = $left + $i * ($bw + $gap); $h = $plot_h * $p / 100; $by = $base - $h; $cx = $x + $bw / 2; ?>
+  <rect x="<?= $x ?>" y="<?= $by ?>" width="<?= $bw ?>" height="<?= $h ?>" rx="3" fill="<?= $colors[$i % 3] ?>"><title><?= htmlspecialchars($legend[$i]) ?>: <?= $p ?>%</title></rect>
+  <text x="<?= $cx ?>" y="<?= $by - 6 ?>" text-anchor="middle"><?= $p ?>%</text>
+  <text x="<?= $cx ?>" y="<?= $base + 18 ?>" text-anchor="middle"><?= htmlspecialchars($legend[$i]) ?></text>
+<?php endforeach; ?>
+</svg>
